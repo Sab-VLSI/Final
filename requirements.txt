@@ -1,0 +1,47 @@
+# SEMICON / KLA Hackathon 2026 -- inference runtime dependencies
+#
+# Tested Environment:
+#   Python:  3.12.5 (compatible with Python >= 3.10)
+#   OS:      Windows 11 (development); target harness assumed Linux + H100
+#
+# HOW THIS FILE WAS PRODUCED, and why it is not a raw `pip freeze` dump.
+# A full `pip freeze` of the development environment yields 339 packages and
+# BREAKS installation on the evaluation harness in three separate ways:
+#
+#   1. pywin32==308 / pywinpty==2.0.15  -- Windows-only wheels. Hard install
+#      failure on a Linux H100 box.
+#   2. torch==2.5.1+cu121               -- the "+cu121" local version specifier
+#      does not exist on plain PyPI. `pip install -r` fails unless the PyTorch
+#      index is supplied (see below).
+#   3. two `git+https://` requirements  -- require git on the harness and are
+#      unrelated to inference (faster-whisper, a transformers fork).
+#
+# It would also pull ~10 GB of packages irrelevant to this submission
+# (tensorflow, jax, jupyter, streamlit, ultralytics, dlib, ...).
+#
+# The versions below ARE the development environment's exact versions -- so
+# dependency matching is preserved -- but restricted to the true runtime
+# closure. Verified by AST-parsing run.py and src/: the only third-party
+# imports anywhere in the submission are `torch`, `numpy`, and `PIL`.
+# Everything else here is a transitive requirement of those three.
+#
+# INSTALL (CUDA build of torch is not on plain PyPI):
+#   pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu121
+#
+# For a CPU-only harness, drop the "+cu121" suffix from the torch pin and the
+# --extra-index-url flag; everything else is unchanged.
+
+torch==2.5.1+cu121
+numpy==2.1.3
+pillow==11.2.1
+
+# --- transitive requirements of the three above, pinned to the dev environment ---
+filelock==3.13.1
+fsspec==2024.6.1
+jinja2==3.1.6
+markupsafe==3.0.2
+mpmath==1.3.0
+networkx==3.3
+setuptools==78.1.1
+sympy==1.13.1
+typing-extensions==4.12.2

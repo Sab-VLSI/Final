@@ -1,0 +1,19 @@
+{
+  "phase": 2,
+  "split_policy": "TRAIN_SPLIT_ONLY (Zero validation/test leakage)",
+  "seed": 42,
+  "train_samples": 3545,
+  "val_samples": 394,
+  "input_mean": 0.44862022165035664,
+  "input_std": 0.23189431650723427,
+  "input_min": -0.3113168179988861,
+  "input_max": 2.204772710800171,
+  "input_p1": 0.02300035022199154,
+  "input_p99": 1.0645127296447754,
+  "target_mean": 0.44861112095110844,
+  "target_std": 0.21400359046335313,
+  "target_min": 0.0,
+  "target_max": 1.0,
+  "target_p1": 0.02479499951004982,
+  "target_p99": 0.9473746418952942
+}
