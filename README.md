@@ -100,7 +100,9 @@ smoothing noise and smoothing texture identically, which is wrong in opposite di
 | Degradation Estimator | 1,308 | Compresses `y` into a 4-D embedding `z` describing *how* it was degraded |
 | Shared Learned Prior | 48,257 | FiLM-modulated residual CNN — **weight-tied across all 3 stages** |
 | Step sizes `α₁…α₃` | 3 | Learned per-stage data-consistency step (softplus-parameterised, always positive) |
-| **Total** | **49,568** | |
+| **Total Trainable** | **49,568** | **Strict parameter count (weights & biases updated via backpropagation)** |
+| BatchNorm Buffers | 1,026 | Non-trainable moving averages (`running_mean`/`var`) instantiated per-stage |
+| **Total Checkpoint Elements** | **50,594** | Full variable count stored in the `.pt` state dictionary |
 
 ---
 
@@ -345,8 +347,8 @@ raise. Its values are verified identical to those recorded inside the checkpoint
 
 | Guard | On mismatch |
 |---|---|
-| Checkpoint SHA-256 `fac180b1…875cde30` | Hard error |
-| Parameter count = 49,568 | Hard error |
+| Checkpoint SHA-256 `f3497dc2…efc0bfd` | Hard error |
+| Trainable parameter count = 49,568 | Hard error |
 | Normalization config present | Hard error |
 | Per input: 2-D, even dims, finite | Reported; processing continues |
 | Per output: exact 2× shape, finite | Assertion failure |
@@ -427,6 +429,9 @@ INFERENCE COMPLETE
 *Measured on an RTX 4050 Laptop GPU. An H100 will be substantially faster and automatically selects a maximum batch size near 1,800 depending on resolution and background VRAM usage.*
 
 ---
+
+## Also to check the Model works done till now : 
+https://drive.google.com/drive/u/0/folders/1IeHm034SF97qJOpduWtg-Hc9hHlLIuRe
 
 <div align="center">
 
