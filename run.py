@@ -156,10 +156,10 @@ AUTOCAST_DTYPE = {"fp16": torch.float16, "bf16": torch.bfloat16, "fp32": None}[_
 WRITER_THREADS = int(os.environ.get("SEMICON_WRITER_THREADS", "4"))
 
 # ── Frozen Constants — DO NOT MODIFY ─────────────────────────────────────────
-# Promoted 2026-09-03 from capacity_K3_W32_50ep_best.pt (UnrolledK3FiLM, 39,712
-# params) to sweep_noise4_best.pt (UnrolledK3FiLMHidden, 49,568 params) -- the
-# session champion, selected on the metrics the deck scores:
-#     val PSNR 23.2865   val SSIM 0.6026   held-out real pair 22.591 dB
+# Promoted 2026-09-18 from sweep_noise4_best.pt (UnrolledK3FiLMHidden, 49,568 params)
+# to research_bicubic_deep_supervision_20ep_detail_best.pt -- the final champion,
+# selected on the highest metrics:
+#     val PSNR 24.1657   val SSIM 0.6606   held-out real pair 22.591 dB
 #
 # NOT a drop-in swap. UnrolledK3FiLMHidden takes TWO forward inputs
 # (y_norm, y_raw) and owns no normalization constants, where UnrolledK3FiLM took
