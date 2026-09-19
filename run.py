@@ -1,7 +1,6 @@
 """
 run.py
 ======
-SEMICON / KLA Hackathon 2026 — Official Submission Entry Point.
 
 Usage:
     python run.py <input-dir> <output-dir>
@@ -111,33 +110,35 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"}
 SUPPORTED_EXTS = NPY_EXTS | IMAGE_EXTS
 
 
-def _auto_batch_size() -> int:
+def _get_dynamic_batch_size(h: int, w: int) -> int:
     """
-    Size the batch to the GPU actually present.
-
-    A fixed 64 was sized for a 6 GB laptop card and would leave an 80 GB H100
-    almost idle: with a 49k-parameter model the per-image footprint is small, so
-    the batch is limited by nothing but VRAM, and larger batches directly reduce
-    the number of kernel launches -- the dominant cost for a model this small.
+    Dynamically size the batch based on real-time VRAM availability and resolution.
+    
+    A 128x128 image costs ~45 MB in our Deep Supervision architecture.
+    A 256x256 image costs exactly 4x as much. We check mem_get_info() right
+    before batching to squeeze maximum safe throughput out of any GPU.
     """
     env = os.environ.get("SEMICON_BATCH_SIZE")
     if env:
         return max(1, int(env))
     if not torch.cuda.is_available():
         return 8
-    gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
-    if gb >= 60:      # H100 80GB, A100 80GB
-        return 512
-    if gb >= 30:      # A100 40GB, L40S
-        return 256
-    if gb >= 16:
-        return 128
-    if gb >= 10:
-        return 96
-    return 64         # 6-8 GB laptop/consumer cards
+        
+    free_mem, _ = torch.cuda.mem_get_info(0)
+    free_mb = free_mem / (1024 ** 2)
+    
+    # Base cost measured on an RTX 4050
+    scaling_factor = (h / 128.0) * (w / 128.0)
+    vram_per_image_mb = 45.0 * scaling_factor
+    
+    # Reserve 1GB for CUDA context and system margin
+    safe_free_mb = max(256.0, free_mb - 1024.0)
+    
+    bs = int(safe_free_mb // vram_per_image_mb)
+    
+    # Clamp to a maximum of 512 to avoid massive launch overhead timeouts or internal limits
+    return max(1, min(512, bs))
 
-
-BATCH_SIZE = _auto_batch_size()
 
 # Inference precision. H100 4th-gen tensor cores run fp16/bf16 far faster than
 # fp32, and the quality cost was measured on this checkpoint over 60 validation
@@ -394,8 +395,8 @@ def main():
     print("=" * 64)
     print(f"  Device:           {device}" + (f" ({gpu_name})" if gpu_name != "N/A" else ""))
     print(f"  Inference mode:   single-pass (TTA removed)")
-    print(f"  Batch size:       {BATCH_SIZE}"
-          + ("" if os.environ.get("SEMICON_BATCH_SIZE") else " (auto-sized to GPU VRAM)"))
+    print(f"  Batch size:       Dynamic (Real-time VRAM allocation)"
+          + ("" if not os.environ.get("SEMICON_BATCH_SIZE") else f" (overridden to {os.environ.get('SEMICON_BATCH_SIZE')})"))
     print(f"  Compute precision:{_PRECISION}")
     print(f"  Writer threads:   {WRITER_THREADS}")
     print(f"  Input directory:  {input_dir}")
@@ -461,8 +462,9 @@ def main():
     pending = []
     with ThreadPoolExecutor(max_workers=WRITER_THREADS) as pool:
         for (h, w), items in shape_groups.items():
-            for chunk_start in range(0, len(items), BATCH_SIZE):
-                chunk = items[chunk_start:chunk_start + BATCH_SIZE]
+            dynamic_bs = _get_dynamic_batch_size(h, w)
+            for chunk_start in range(0, len(items), dynamic_bs):
+                chunk = items[chunk_start:chunk_start + dynamic_bs]
                 fpaths = [fp for fp, _ in chunk]
                 arrs = [a for _, a in chunk]
 
@@ -473,7 +475,7 @@ def main():
                     # short batch (64 images of work for 41 real ones here), so with
                     # benchmarking off it is pure waste.
                     out_batch = run_batch(model, raw_cpu, device, norm_mean, norm_std,
-                                          pad_to=BATCH_SIZE if CUDNN_BENCHMARK else 0)
+                                          pad_to=dynamic_bs if CUDNN_BENCHMARK else 0)
 
                     assert out_batch.shape == (len(chunk), 2 * h, 2 * w), (
                         f"Output batch shape {out_batch.shape}, expected {(len(chunk), 2 * h, 2 * w)}"
